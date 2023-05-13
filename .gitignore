@@ -6,3 +6,9 @@ save/
 venv/
 
 __pycache__/
+
+*.bat
+
+*.sql
+
+.env
