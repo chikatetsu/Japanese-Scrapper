@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import threading
 import colorama
+from utils.TimeRemaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
 from utils.index_class import Index
 from utils.scrap_class import Scrap
@@ -15,7 +16,6 @@ def is_written_in_kana(voc):
     soup = BeautifulSoup(scrap.get_one(), "html.parser")
     container = soup.select_one("#page_container > div > div > article > div > div.concept_light-meanings.medium-9.columns > div > div.meaning-wrapper")
     if container is None:
-        print(colorama.Fore.CYAN, "{:.3f}".format((index.value / len(voc)) * 100), "%\t", index.value, colorama.Fore.RESET)
         print(colorama.Fore.RED, voc[2], "\t" + voc[0] + "\n", colorama.Fore.RESET)
         delete_dead_url(soup, voc)
         return False
@@ -31,7 +31,6 @@ def is_written_in_kana(voc):
     if "Usually written using kana alone" in tag:
         with open("save/kanjiless.txt", "a", encoding="utf-8") as f:
             f.write(str(voc[2]) + "\t" + voc[0] + "\n")
-        print(colorama.Fore.CYAN, "{:.3f}".format((index.value / len(voc)) * 100), "%\t", index.value, colorama.Fore.RESET)
         print(voc[2], "\t" + voc[0] + "\n")
 
         # db.cursor.execute("UPDATE `voc` SET `difficulte`=NULL, `jap`=`kana`, `kana`=NULL WHERE `id`=%s", ())
@@ -87,6 +86,7 @@ if __name__ == '__main__':
     db.cursor.execute("SELECT `url`,`fra`,`id` FROM `voc` WHERE `kana` IS NOT NULL ORDER BY `id`")
     voc = db.cursor.fetchall()
 
+    tm = TimeRemaining(len(voc))
     saved_url = get_all_saved_url()
 
     index = Index("save/processDelete.txt")
@@ -94,6 +94,7 @@ if __name__ == '__main__':
     scrap.fetch_url(voc[index.value][0])
 
     while index.value < len(voc):
+        tm.print_percent(index.value)
         if index.value + 1 >= len(voc):
             is_written_in_kana(voc[index.value][1])
         else:
@@ -106,7 +107,6 @@ if __name__ == '__main__':
         old_index = index.value+1
         index.value = filter_index(index.value+1, voc)
         if old_index != index.value:
-            print(colorama.Fore.CYAN, "{:.3f}".format((index.value / len(voc)) * 100), "%\t", index.value, colorama.Fore.RESET)
             print(colorama.Fore.GREEN, "Index skipped\n", colorama.Fore.RESET)
         index.save()
 
