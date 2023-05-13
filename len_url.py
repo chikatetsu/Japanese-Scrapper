@@ -1,6 +1,9 @@
 import colorama
 from utils.bdd_class import ConnectionDatabase
 
+
+### Get the max length of an element in the database
+
 colorama.init()
 db = ConnectionDatabase()
 
