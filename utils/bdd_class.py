@@ -10,6 +10,7 @@ class ConnectionDatabase:
     conn = None
 
     def __new__(cls):
+        """ Needs to be instanciated in a variable """
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
             cls.__instance.conn = cls.__instance.__get_conn()
@@ -19,6 +20,7 @@ class ConnectionDatabase:
 
     @staticmethod
     def __get_conn():
+        """ Connect to the database """
         colorama.init()
         load_dotenv()
 
@@ -37,5 +39,6 @@ class ConnectionDatabase:
 
 
     def close(self):
+        """ Close the connection """
         self.cursor.close()
         self.conn.close()
