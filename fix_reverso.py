@@ -2,15 +2,17 @@ from bs4 import BeautifulSoup
 import threading
 import time
 import colorama
-import requests
+from utils.TimeRemaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
+from utils.scrap_class import Scrap
 
 
-def get_info_from_url(word):
+def get_eng_trad(word):
+    """ Get the english traduction of the word """
     global db
-    global html
+    global scrap
 
-    soup = BeautifulSoup(html.pop(0), "html.parser")
+    soup = BeautifulSoup(scrap.get_one(), "html.parser")
     fra = soup.select_one('#page_container > div > div > article > div > div.concept_light-meanings.medium-9.columns > div > div.meaning-wrapper > div > span.meaning-meaning')
 
     if fra is None:
@@ -35,43 +37,26 @@ def get_info_from_url(word):
             time.sleep(10)
 
 
-def fetch_url(url):
-    global html
-    connected = False
-    error_message_displayed = False
-
-    while not connected:
-        try:
-            response = requests.get("https://jisho.org/" + url, timeout=None)
-            connected = True
-            html.append(response.content)
-
-        except requests.exceptions.RequestException as e:
-            if not error_message_displayed:
-                print(colorama.Fore.RED, "ERREUR DE CONNEXION : Veuillez vérifier votre connexion internet", colorama.Fore.RESET)
-                error_message_displayed = True
-            time.sleep(30)
-
-
 
 if __name__ == '__main__':
     colorama.init()
+    scrap = Scrap("https://jisho.org/")
     db = ConnectionDatabase()
 
+    # Get all the url of the words that need to be fixed
     db.cursor.execute("SELECT `id`,`url` FROM `voc` WHERE `fra`=''")
     url = db.cursor.fetchall()
 
-    html = []
-    fetch_url(url[0][1])
+    tm = TimeRemaining(len(url))
+    scrap.fetch_url(url[0][1])
 
     for i in range(len(url)):
-        print(colorama.Fore.CYAN, "{:.3f}".format((i / len(url)) * 100), "%\t", i, colorama.Fore.RESET)
+        tm.print_percent(i)
         if i+1 >= len(url):
-            get_info_from_url(url[i][1])
+            get_eng_trad(url[i][1])
             continue
-
-        t1 = threading.Thread(target=fetch_url, args=(url[i+1][1],))
-        t2 = threading.Thread(target=get_info_from_url, args=(url[i],))
+        t1 = threading.Thread(target=scrap.fetch_url, args=(url[i+1][1],))
+        t2 = threading.Thread(target=get_eng_trad, args=(url[i],))
         t1.start()
         t2.start()
         t1.join()

@@ -52,12 +52,12 @@ if __name__ == "__main__":
 
         if i+1 >= len(wiki):
             get_wiki_url(wiki[i])
-        else:
-            t1 = threading.Thread(target=scrap.fetch_url, args=(wiki[i+1][1],))
-            t2 = threading.Thread(target=get_wiki_url, args=(wiki[i],))
-            t1.start()
-            t2.start()
-            t1.join()
-            t2.join()
+            continue
+        t1 = threading.Thread(target=scrap.fetch_url, args=(wiki[i+1][1],))
+        t2 = threading.Thread(target=get_wiki_url, args=(wiki[i],))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
     db.close()
 

@@ -5,6 +5,7 @@ import pyautogui as pag
 
 class MoveMouse:
     def __init__(self):
+        """ Move the mouse every 2 minutes to avoid the computer to go to sleep """
         processus = multiprocessing.Process(target=self._move_mouse)
         processus.start()
 

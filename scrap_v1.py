@@ -3,23 +3,12 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import threading
 import urllib.parse
-import multiprocessing
 import time
-import pyautogui as pag
 import colorama
+from utils.index_class import Index
+from utils.scrap_class import Scrap
+from utils.shift_class import PressShift
 
-
-url = "https://jisho.org"
-base_url = "https:"
-
-
-def move_mouse():
-    while True:
-        time.sleep(120)
-        t = pag.position()
-        pag.moveTo(1000,1, duration=0.2)
-        pag.click()
-        pag.moveTo(t[0], t[1], duration=0.2)
 
 
 def add_links(links, newLinks):
@@ -47,36 +36,20 @@ def format_links(links):
         l = l.replace("sentence", "sentences")
 
         if l.startswith('//jisho.org'):
-            result.append(urljoin(base_url, l))
+            result.append(urljoin("https:", l))
         elif l.startswith('/'):
-            result.append(urljoin(url, l))
-        elif l.startswith(url):
+            result.append(urljoin(scrap.base_url, l))
+        elif l.startswith(scrap.base_url):
             result.append(l)
     return result
 
 
-def save_index(index):
-    with open("save/processURL.txt", "w", encoding="utf-8") as f:
-        f.write(str(index))
-
-
 def get_links():
     global links
-    global link
-    response = requests.get(link, timeout=180)
+    global scrap
+    response = requests.get(scrap.get_one(), timeout=180)
     soup = BeautifulSoup(response.content, "html.parser")
     links = add_links(links, format_links(soup.find_all("a", href=True)))
-# def get_links():
-#     global links
-#     global html
-#     soup = BeautifulSoup(html[0], "html.parser")
-#     links = add_links(links, format_links(soup.find_all("a", href=True)))
-#     html.remove(html[0])
-
-def fetch_url(url):
-    global html
-    response = requests.get(url, timeout=180)
-    html.append(response.content)
 
 
 def init_links():
@@ -85,63 +58,54 @@ def init_links():
         links = list(map(str, f.read().split("\n")))
 
 
-def init_index():
-    global index
-    with open("save/processURL.txt", "r", encoding="utf-8") as f:
-        index = int(f.read())
-
-
 def print_current_link():
     global index
     global links
     global lenLinks
     if lenLinks < len(links):
-        print(colorama.Fore.YELLOW, "{:.3f}".format((index/len(links))*100), "%\t", index, "\t", urllib.parse.unquote(links[index]), colorama.Fore.RESET)
+        print(colorama.Fore.YELLOW, "{:.3f}".format((index.value/len(links))*100), "%\t", index, "\t", urllib.parse.unquote(links[index.value]), colorama.Fore.RESET)
     else :
-        print(colorama.Fore.GREEN, "{:.3f}".format((index/len(links))*100), "%\t", index, "\t", urllib.parse.unquote(links[index]), colorama.Fore.RESET)
+        print(colorama.Fore.GREEN, "{:.3f}".format((index.value/len(links))*100), "%\t", index, "\t", urllib.parse.unquote(links[index.value]), colorama.Fore.RESET)
     lenLinks = len(links)
 
 
 if __name__ == '__main__':
-    processus = multiprocessing.Process(target=move_mouse)
-    processus.start()
+    PressShift()
     colorama.init()
-
+    scrap = Scrap("https://jisho.org")
+    index = Index("save/processURL.txt")
     links = []
-    index = 0
     init_links()
-    init_index()
     lenLinks = len(links)
 
     cmpt = 0
     html = []
-    fetch_url(links[index])
+    scrap.fetch_url(links[index.value])
     start = time.time()
     old_len = len(links)
 
 
-    while index < len(links):
+    while index.value < len(links):
         print_current_link()
         try:
-            if index + 1 >= len(links):
+            if index.value + 1 >= len(links):
                 get_links()
             else:
                 t1 = threading.Thread(target=get_links)
-                t2 = threading.Thread(target=fetch_url, args=(links[index + 1],))
+                t2 = threading.Thread(target=scrap.fetch_url, args=(links[index.value + 1],))
                 t1.start()
                 t2.start()
                 t1.join()
                 t2.join()
 
-            index += 1
-            save_index(index)
+            index.increment()
+            index.save()
             cmpt += 1
             if cmpt % 100 == 0:
                 print(colorama.Fore.CYAN, "Reste", round(
-                    (((len(links) - index) / 100) * (time.time() - start) * ((len(links) - old_len + 100) / 100)) / 60),
-                      "minutes et", len(links) - index, "url à traiter", colorama.Fore.RESET)
+                    (((len(links) - index.value) / 100) * (time.time() - start) * ((len(links) - old_len + 100) / 100)) / 60),
+                      "minutes et", len(links) - index.value, "url à traiter", colorama.Fore.RESET)
                 start = time.time()
                 old_len = len(links)
         except:
-            print(colorama.Fore.RED, "Erreur de connexion pour l'url", links[index], "à l'index", index, colorama.Fore.RESET)
-
+            print(colorama.Fore.RED, "Erreur de connexion pour l'url", links[index.value], "à l'index", index, colorama.Fore.RESET)

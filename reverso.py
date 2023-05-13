@@ -37,7 +37,6 @@ if __name__ == '__main__':
     keyboard.on_press(on_shift_press)
 
     db = ConnectionDatabase()
-
     db.cursor.execute("SELECT `id`, `fra` FROM `voc` ORDER BY `id`")
     voc = db.cursor.fetchall()
 
@@ -77,5 +76,4 @@ if __name__ == '__main__':
             index.value = i - 1
             index.save()
             paste_word(i)
-
     db.close()
