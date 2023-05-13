@@ -2,8 +2,8 @@ from bs4 import BeautifulSoup
 import threading
 import time
 import colorama
-import requests
 from utils.bdd_class import ConnectionDatabase
+from utils.scrap_class import Scrap
 
 
 def get_info_from_url(word):
@@ -35,42 +35,24 @@ def get_info_from_url(word):
             time.sleep(10)
 
 
-def fetch_url(url):
-    global html
-    connected = False
-    error_message_displayed = False
-
-    while not connected:
-        try:
-            response = requests.get("https://jisho.org/" + url, timeout=None)
-            connected = True
-            html.append(response.content)
-
-        except requests.exceptions.RequestException as e:
-            if not error_message_displayed:
-                print(colorama.Fore.RED, "ERREUR DE CONNEXION : Veuillez vérifier votre connexion internet", colorama.Fore.RESET)
-                error_message_displayed = True
-            time.sleep(30)
-
-
 
 if __name__ == '__main__':
     colorama.init()
+    scrap = Scrap("https://jisho.org/")
     db = ConnectionDatabase()
 
     db.cursor.execute("SELECT `id`,`url` FROM `voc` WHERE `fra`=''")
     url = db.cursor.fetchall()
 
     html = []
-    fetch_url(url[0][1])
+    scrap.fetch_url(url[0][1])
 
     for i in range(len(url)):
         print(colorama.Fore.CYAN, "{:.3f}".format((i / len(url)) * 100), "%\t", i, colorama.Fore.RESET)
         if i+1 >= len(url):
             get_info_from_url(url[i][1])
             continue
-
-        t1 = threading.Thread(target=fetch_url, args=(url[i+1][1],))
+        t1 = threading.Thread(target=scrap.fetch_url, args=(url[i+1][1],))
         t2 = threading.Thread(target=get_info_from_url, args=(url[i],))
         t1.start()
         t2.start()

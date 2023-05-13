@@ -52,6 +52,7 @@ if __name__ == '__main__':
 
         if i+1 >= len(links):
             get_info_from_url(links[i])
+            continue
         else:
             t1 = threading.Thread(target=scrap.fetch_url, args=(links[i+1][1],))
             t2 = threading.Thread(target=get_info_from_url, args=(links[i],))
