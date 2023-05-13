@@ -4,10 +4,8 @@ from utils.bdd_class import ConnectionDatabase
 if __name__ == '__main__':
     db = ConnectionDatabase()
 
-
     with open("save/kanjiless.txt", "r", encoding="utf-8") as f:
         words = f.read().split("\n")
-
 
     for w in words:
         w = w.split("\t")
@@ -18,7 +16,7 @@ if __name__ == '__main__':
         if kana == "" or kana is None:
             print("Kana is NULL")
             break
-
         db.cursor.execute("UPDATE `voc` SET `jap`=`kana`, `kana`=NULL, `difficulte`=NULL WHERE `id`=%s", (int(w[0]),))
+
     db.conn.commit()
     db.close()
