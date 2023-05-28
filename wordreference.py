@@ -17,8 +17,8 @@ def fetch_all_words(words):
 
 def get_trad(id):
     global scrap
-    global nb_op_failed
 
+    nb_op_failed = 0
     result_fra = ""
     while len(scrap.html) != 0:
         soup = BeautifulSoup(scrap.get_one(), "html.parser")
@@ -33,7 +33,7 @@ def get_trad(id):
             scrap.clear_html()
 
             if nb_op_failed < 20:
-                return
+                return False
             with open("save/err.html", "w", encoding="utf-8") as f:
                 f.write(str(soup))
 
@@ -42,19 +42,37 @@ def get_trad(id):
             if input("Sauter cet index la prochaine fois? (o/n)") == "o":
                 with open("save/processWordreference.txt", "w", encoding="utf-8") as f:
                     f.write(str(id))
-                nb_op_failed = 0
-            return
+            return False
 
 
         nb_op_failed = 0
         if len(result_fra) != 0:
             result_fra += ';'
-        result_fra += fra[0].contents[0].text.rstrip()
+        k = 0
+        while k < len(fra):
+            if fra[k].contents[0].text.strip().endswith('vtr'):
+                break
+            if fra[k].contents[0].text.strip().endswith('vi'):
+                break
+            k += 1
+        if k == len(fra):
+            k = 0
+        result_fra += fra[k].contents[0].text.rstrip()
 
     with open("save/processWordreference.txt", "w", encoding="utf-8") as f:
         f.write(str(id))
     print(colorama.Fore.GREEN, result_fra+"\n", colorama.Fore.RESET)
     db.cursor.execute("UPDATE `voc` SET `fra`=%s, `difficulteJP`=0 WHERE `id`=%s", (result_fra, id))
+    db.conn.commit()
+    return True
+
+
+
+def clean_db():
+    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,'\n','') WHERE `fra` LIKE '%\n%'")
+    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,'\r','') WHERE `fra` LIKE '%\r%'")
+    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,' ;',';') WHERE `fra` LIKE '% ;%'")
+    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,'; ',';') WHERE `fra` LIKE '%; %'")
     db.conn.commit()
 
 
@@ -63,33 +81,29 @@ if __name__ == '__main__':
     PressShift()
     colorama.init()
     scrap = Scrap("https://www.wordreference.com/enfr/")
-    index = Index("save/processWordreference.txt")
+    index = Index("save/processReverso.txt")
     db = ConnectionDatabase()
 
-    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,' ;',';') WHERE `fra` LIKE '% ;%'")
-    db.cursor.execute("UPDATE `voc` SET `fra`=REPLACE(`fra`,'; ',';') WHERE `fra` LIKE '%; %'")
-    db.conn.commit()
-
-    db.cursor.execute("SELECT `id`, `fra` FROM `voc` WHERE `fra` NOT LIKE '% %' AND (`difficulteJP`!=0 OR `difficulteJP` IS NULL) AND `id`>=%s AND `url` LIKE '%\%%' AND `url` NOT LIKE 'wiki%' ORDER BY `id`", (index.value,))
+    clean_db()
+    db.cursor.execute("SELECT * FROM `voc` WHERE `fra` REGEXP '^(to [^ ]+;)*(to [^ ]+)$'")
+    # db.cursor.execute("SELECT `id`, `fra` FROM `voc` WHERE `fra` NOT LIKE '% %' AND (`difficulteJP`!=0 OR `difficulteJP` IS NULL) AND `id`>=%s AND `url` LIKE '%\%%' AND `url` NOT LIKE 'wiki%' ORDER BY `id`", (index.value,))
     voc = db.cursor.fetchall()
-
-    with open("save/processDB.txt", "r", encoding="utf-8") as f:
-        limit = int(f.read())
-
-    nb_op_failed = 0
-    tm = TimeRemaining(limit)
+    tm = TimeRemaining(len(voc))
 
     allFra = []
-    i = 0
-    while voc[i][0] < limit:
-        tm.print_time(voc[i][0], len(allFra))
-        tm.print_percent(voc[i][0])
+    while index.value < len(voc):
+        tm.length = len(voc)
+        tm.print_time(index.value, len(allFra))
+        tm.print_percent(index.value)
 
-        allFra = voc[i][1].split(';')
-        print(allFra)
+        allFra = voc[index.value][1].split(';')
+        print(voc[index.value][0], "\t", allFra)
 
         fetch_all_words(allFra)
-        get_trad(voc[i][0])
-        i += 1
+        if get_trad(voc[index.value][0]):
+            voc.pop(index.value)
+        else:
+            index.increment()
+            index.save()
 
     db.close()
