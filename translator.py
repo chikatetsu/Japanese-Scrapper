@@ -24,7 +24,10 @@ def get_trad_wordreference(eng):
 def get_trad(eng):
     global translator
     translation = translator.translate(eng)
-    print(translation)
+    if translation.startswith("MYMEMORY WARNING"):
+        print(colorama.Fore.RED, translation, colorama.Fore.RESET)
+        while True:
+            pass
     return translation
 
 
@@ -52,12 +55,17 @@ if __name__ == "__main__":
     clean_db()
     db.cursor.execute("SELECT * FROM `voc` WHERE `difficulteJP`!=0 OR `difficulteJP` IS NULL")
     vocs = db.cursor.fetchall()
-    tm = TimeRemaining(len(vocs))
+    tr = TimeRemaining(len(vocs))
+
+    db.cursor.execute("SELECT COUNT(*) FROM `voc`")
+    tr_forall = TimeRemaining(db.cursor.fetchone()[0])
+    db.cursor.execute("SELECT COUNT(*) FROM `voc` WHERE `difficulteJP`=0")
+    len_translated = db.cursor.fetchone()[0]
 
     allFra = []
     for voc in vocs:
-        tm.print_time(vocs.index(voc), len(allFra))
-        tm.print_percent(vocs.index(voc))
+        tr.print_time(vocs.index(voc), len(allFra))
+        tr_forall.print_percent(len_translated + vocs.index(voc))
 
         allFra = voc[1].split(';')
         print(voc[0], "\t", allFra)
@@ -71,5 +79,5 @@ if __name__ == "__main__":
             else:
                 newFra += get_trad_wordreference(eng)
         update_db(voc[0], newFra)
-        print(colorama.Fore.GREEN, newFra, colorama.Fore.RESET)
+        print(colorama.Fore.GREEN, newFra, colorama.Fore.RESET, '\n')
     db.close()
