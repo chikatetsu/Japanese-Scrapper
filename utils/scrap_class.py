@@ -8,7 +8,7 @@ class Scrap:
         """ Needs the base url of the website to scrap """
         self.base_url = base_url
         self.html = []
-        self.__headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'}
+        self.headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'}
 
 
     def fetch_url(self, url):
@@ -18,7 +18,7 @@ class Scrap:
 
         while not connected:
             try:
-                response = requests.get(self.base_url + url, headers=self.__headers, timeout=None)
+                response = requests.get(self.base_url + url, headers=self.headers, cookies=None, timeout=None)
                 connected = True
                 self.html.append(response.content)
 
