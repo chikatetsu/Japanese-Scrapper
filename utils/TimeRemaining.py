@@ -18,7 +18,16 @@ class TimeRemaining:
          :param current_index: The current iteration
          :param nb_iteration: The number of iteration that has been done since the last call of this function"""
         self._avr_time = (self._avr_time + time.time() - self._start) / (1 + nb_iteration)
-        print(colorama.Fore.CYAN, "Reste", round((self._avr_time * (self.length - current_index)) / 60), "minutes", colorama.Fore.RESET)
+        minutes = int((self._avr_time * (self.length - current_index)) / 60)
+        hours = int(minutes / 60)
+        days = int(hours / 24)
+
+        print(colorama.Fore.CYAN, "Reste", end=" ")
+        if days > 0:
+            print(str(days) + "j", end=" ")
+        if hours > 0:
+            print(str(hours % 24) + "h", end=" ")
+        print(str(minutes % 60) + "min", colorama.Fore.RESET)
         self._start = time.time()
 
 
