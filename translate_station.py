@@ -1,6 +1,6 @@
 import colorama
 
-from utils.TimeRemaining import TimeRemaining
+from utils.time_remaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
 
 def trad_gare(word):

@@ -5,7 +5,7 @@ import time
 import colorama
 from bs4 import BeautifulSoup
 from translate import Translator
-from utils.TimeRemaining import TimeRemaining
+from utils.time_remaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
 from utils.scrap_class import Scrap
 from utils.shift_class import PressShift

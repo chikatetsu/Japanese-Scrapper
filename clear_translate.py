@@ -1,9 +1,11 @@
 import re
 import time
+import urllib.parse
+
 import colorama
 from bs4 import BeautifulSoup
 from translate import Translator
-from utils.TimeRemaining import TimeRemaining
+from utils.time_remaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
 from utils.scrap_class import Scrap
 from utils.shift_class import PressShift
@@ -29,7 +31,7 @@ def format_word(word):
     word = temp
 
     # *.!?,...
-    letter_patthern = r"[^a-z0-9 '\-àâäéèêëîïôöùûüÿçæ]"
+    letter_patthern = r"[^a-z0-9 '\-àâäéèêëîïôöùûüÿçæāēīōū]"
     word = re.sub(letter_patthern, "", word)
 
     #roman_patthern = r"[I|V|X]\." #IV.
@@ -84,11 +86,12 @@ def get_keys_by_value(dictionary):
     return ";".join(result[:5])
 
 
-def merge_similar_words(dictionary):
-    to_delete = []
 
-    for i,key1 in enumerate(dictionary.keys()):
-        for j,key2 in enumerate(dictionary.keys()):
+def merge_similar_words(dictionary):
+    to_delete = {}
+
+    for i, key1 in enumerate(dictionary.keys()):
+        for j, key2 in enumerate(dictionary.keys()):
             if i <= j:
                 continue
             if key2 in to_delete or key1 in to_delete:
@@ -100,27 +103,23 @@ def merge_similar_words(dictionary):
 
             if dictionary[key1] > dictionary[key2]:
                 dictionary[key1] += dictionary[key2]
-                if key2 not in to_delete:
-                    to_delete.append(key2)
+                to_delete[key2] = True
                 continue
 
             if dictionary[key2] > dictionary[key1]:
                 dictionary[key2] += dictionary[key1]
-                if key1 not in to_delete:
-                    to_delete.append(key1)
+                to_delete[key1] = True
                 continue
 
             if len(key1) > len(key2):
                 dictionary[key2] += dictionary[key1]
-                if key1 not in to_delete:
-                    to_delete.append(key1)
+                to_delete[key1] = True
                 continue
 
             dictionary[key1] += dictionary[key2]
-            if key2 not in to_delete:
-                to_delete.append(key2)
+            to_delete[key2] = True
 
-    for key in to_delete:
+    for key in to_delete.keys():
         del dictionary[key]
 
     return sort_dict(dictionary)
@@ -161,25 +160,33 @@ def levenshtein_distance(word1, word2):
     return matrix[len(word1)][len(word2)]
 
 
-def get_trad_jisho(url, id):
+def get_trad_jisho(url, jap, id):
     """Récupère les traductions en plus sur jisho.org"""
     global scrap_jisho
+    global db
     scrap_jisho.fetch_url(url)
     soup = BeautifulSoup(scrap_jisho.get_one(), "html.parser")
     eng = soup.select("#page_container div div article div div.concept_light-meanings.medium-9.columns div div.meaning-wrapper div span.meaning-meaning")
+    result = []
 
     if eng is None or len(eng) == 0:
-        return []
+        newurl = urllib.parse.quote("word/"+jap)
+        scrap_jisho.fetch_url(newurl)
+        soup = BeautifulSoup(scrap_jisho.get_one(), "html.parser")
+        eng = soup.select("#page_container div div article div div.concept_light-meanings.medium-9.columns div div.meaning-wrapper div span.meaning-meaning")
+        if eng is None or len(eng) == 0:
+            db.cursor.execute("UPDATE `voc` SET `url`='' WHERE `id`=%s", (id,))
+            db.conn.commit()
+            return []
+        db.cursor.execute("UPDATE `voc` SET `url`=%s WHERE `id`=%s", (newurl, id))
+        db.conn.commit()
 
-    result = []
     for w in eng:
         word = w.contents[0].text.rstrip()
         temp = re.search(r"[a-zA-Z0-9]", word)
         if temp is not None:
             result += word.split(";")
         else:
-            with open("save/denied.txt", "a", encoding="utf-8") as f:
-                f.write(f"{id}\t{word}\n")
             print(colorama.Fore.RED, f"'{word}' denied", colorama.Fore.RESET)
     return [w.strip() for w in result]
 
@@ -195,13 +202,11 @@ def get_trad_wordreference(eng):
         global scrap_mm_en, translator_en
         return get_trad_mymemory(scrap_mm_en, translator_en, eng)
 
-    result = ""
+    result = []
     for i in range(len(fra)):
-        if result != "":
-            result += ";"
-        result += fra[i].contents[0].text.rstrip()
+        result.append(fra[i].contents[0].text.rstrip())
     print(colorama.Fore.YELLOW, f"'{eng}' translated with WORDREFERENCE", colorama.Fore.RESET)
-    return result
+    return ";".join(result)
 
 
 def get_trad_mymemory(scrap, translator, word):
@@ -210,22 +215,14 @@ def get_trad_mymemory(scrap, translator, word):
     fra = soup.select('#resall div div div div.target p span.text')
     org = soup.select('#resall div div div div.source p span.text')
     if org is None or len(org) == 0:
-        with open("save/err.html", "w", encoding="utf-8") as f:
-            f.write(str(soup))
         return get_trad(translator, word)
     try:
         if format_word(org[0].contents[0].text.rstrip()) != format_word(word):
-            with open("save/err.html", "w", encoding="utf-8") as f:
-                f.write(str(soup))
             return get_trad(translator, word)
     except:
-        with open("save/err.html", "w", encoding="utf-8") as f:
-            f.write(str(soup))
         return get_trad(translator, word)
 
     if fra is None or len(fra) == 0:
-        with open("save/err.html", "w", encoding="utf-8") as f:
-            f.write(str(soup))
         return get_trad(translator, word)
 
     try:
@@ -234,8 +231,6 @@ def get_trad_mymemory(scrap, translator, word):
         return get_trad(translator, word)
 
     if content == "":
-        with open("save/err.html", "w", encoding="utf-8") as f:
-            f.write(str(soup))
         return get_trad(translator, word)
     print(colorama.Fore.YELLOW, f"'{word}' translated with MYMEMORY", colorama.Fore.RESET)
     return content
@@ -289,30 +284,26 @@ if __name__ == "__main__":
         tr.print_time(vocs.index(voc), len(jisho))
         tr_forall.print_percent(len_translated + vocs.index(voc))
 
-        jisho = get_trad_jisho(voc[1], voc[0])
+        jisho = get_trad_jisho(voc[1], voc[2], voc[0])
         if jisho is None or len(jisho) == 0:
-            print(colorama.Back.RED, "No translation found for", voc[2], colorama.Back.RESET)
+            print(colorama.Back.RED, voc[0], "No translation found for", voc[2], colorama.Back.RESET)
             continue
         print(voc[0], '\t', jisho)
 
-        newFra = ""
+        newFra = []
         for eng in jisho:
-            if newFra != "":
-                newFra += ";"
             if eng.startswith("to "):
                 eng = eng[3:]
             if " " in eng:
-                newFra += get_trad_mymemory(scrap_mm_en, translator_en, eng)
+                newFra.append(get_trad_mymemory(scrap_mm_en, translator_en, eng))
             else:
-                newFra += get_trad_wordreference(eng)
-        if newFra != "":
-            newFra += ";"
-        newFra += get_trad_mymemory(scrap_mm_ja, translator_ja, voc[2])
-        final = simplify_fra(newFra)
+                newFra.append(get_trad_wordreference(eng))
+        newFra.append(get_trad_mymemory(scrap_mm_ja, translator_ja, voc[2]))
+        final = simplify_fra(";".join(newFra))
 
-        if final != "":
-            print(colorama.Fore.GREEN, voc[2], ":", final, colorama.Fore.RESET, '\n\n')
-            update_db(voc[0], final)
+        if final == "":
+            print(colorama.Back.RED, "No translation found for", voc[2], colorama.Back.RESET)
             continue
-        print(colorama.Back.RED, "No translation found for", voc[2], colorama.Back.RESET)
+        print(colorama.Fore.GREEN, voc[2], ":", final, colorama.Fore.RESET, '\n\n')
+        update_db(voc[0], final)
     db.close()

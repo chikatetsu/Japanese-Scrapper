@@ -1,7 +1,7 @@
 import webbrowser
 from bs4 import BeautifulSoup
 import colorama
-from utils.TimeRemaining import TimeRemaining
+from utils.time_remaining import TimeRemaining
 from utils.bdd_class import ConnectionDatabase
 from utils.index_class import Index
 from utils.scrap_class import Scrap
