@@ -1,22 +1,23 @@
 import time
 import urllib
 from urllib.parse import urljoin, urlparse
-import threading
 import colorama
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver import FirefoxOptions
 
 from utils.time_remaining import TimeRemaining
 from utils.index_class import Index
 from utils.links_class import Links
-from utils.scrap_class import Scrap
 from utils.shift_class import PressShift
 
 
-def get_links():
-    global links
-    global scrap
-    soup = BeautifulSoup(scrap.get_one(), "html.parser")
-    links.add_links(format_links(soup.find_all("a", href=True)))
+
+def get_links(url):
+    global driver
+    driver.get(base_url + url)
+    a_tags_with_href = driver.find_elements(By.CSS_SELECTOR, "a[href]")
+    links.add_links(format_links(a_tags_with_href))
 
 
 def get_website_name(url):
@@ -25,12 +26,17 @@ def get_website_name(url):
 
 
 def format_links(urls):
-    print(urls)
+    global base_url
     result = []
-    for l in urls:
-        l = l['href']
-        l = l.replace(scrap.base_url, '')
-        l = l.replace(scrap.base_url.split(':')[1], '')
+    for element in urls:
+        l = element.get_attribute('href')
+        if not l:
+            continue
+        l = str(l)
+        if l.startswith('javascript:'):
+            continue
+        l = l.split('#')[0]
+        l = l.replace(base_url, '')
 
         if l.startswith('http:/news'):
             l = l.replace('http:', '')
@@ -64,25 +70,18 @@ def print_current_link():
 if __name__ == '__main__':
     PressShift()
     colorama.init()
-    scrap = Scrap("https://www.nhk.or.jp")
+    base_url = "https://www.nhk.or.jp"
+    opts = FirefoxOptions()
+    opts.add_argument("--headless")
+    driver = webdriver.Firefox(options=opts)
     index = Index("save/nhk_index.txt")
     links = Links("save/nhk.txt")
     tm = TimeRemaining(len(links))
-    scrap.fetch_url(links.get_value(index.value))
     known_links = Links("save/known_links.txt")
 
     while index.value < len(links):
         try:
-            if index.value + 1 >= len(links):
-                get_links()
-            else:
-                t1 = threading.Thread(target=get_links)
-                t2 = threading.Thread(target=scrap.fetch_url, args=(links.get_value(index.value + 1),))
-                t1.start()
-                t2.start()
-                t1.join()
-                t2.join()
-
+            get_links(links.get_value(index.value))
             index.increment()
             index.save()
             if index.value % 50 == 0:
@@ -92,3 +91,4 @@ if __name__ == '__main__':
         except Exception as e:
             print(colorama.Fore.RED, f"Erreur de connexion pour l'url {links.get_value(index.value)} à l'index {index.value}\n{e}", colorama.Fore.RESET)
             time.sleep(10)
+    driver.quit()

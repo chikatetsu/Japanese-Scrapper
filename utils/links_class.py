@@ -29,7 +29,14 @@ class Links:
 
     def get_value(self, index):
         """ Get the url at the index 'index' """
+        if len(self.value) <= index:
+            print("get_value(): Index value out of range. Last value returned")
+            return self.value[-1]
+        if index < 0:
+            print("get_value(): Index value out of range. First value returned")
+            return self.value[0]
         return self.value[index]
+
     def __len__(self):
         """ Returns the number of links """
         return len(self.value)

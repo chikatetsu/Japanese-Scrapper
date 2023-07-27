@@ -1,0 +1,17 @@
+bs4>=0.0.1
+beautifulsoup4>=4.12.2
+colorama>=0.4.6
+future>=0.18.3
+keyboard>=0.13.5
+mysql>=0.0.3
+mysql-connector-python>=8.1.0
+Pillow>=10.0.0
+PyAutoGUI>=0.9.54
+pyperclip>=1.8.2
+pytesseract>=0.3.10
+python-dotenv>=1.0.0
+regex>=2023.6.3
+requests>=2.31.0
+selenium>=4.10.0
+translate>=3.6.1
+webdriver-manager>=3.9.1
